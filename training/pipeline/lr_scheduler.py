@@ -5,11 +5,11 @@ from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from yacs.config import CfgNode as CN
 
 
-# copied from https://github.com/facebookresearch/mae/blob/main/util/lars.py
-# as is
 class LARS(torch.optim.Optimizer):
     """
     LARS optimizer, no rate scaling or weight decay for parameters <= 1D.
+    copied as is from 
+    https://github.com/facebookresearch/mae/blob/main/util/lars.py
     """
 
     def __init__(
