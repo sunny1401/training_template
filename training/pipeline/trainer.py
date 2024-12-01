@@ -71,6 +71,7 @@ class Trainer(L.Trainer):
         devices: int,
         epochs: int,
         experiment_name: str,
+        project_name: str,
         logging_interval: str,
         params: Dict,
         seed: int,
@@ -84,6 +85,7 @@ class Trainer(L.Trainer):
         default_root_dir.mkdir(parents=True, exist_ok=True)
         self.train_logger = self.init_logger(
             logs_dir=default_root_dir / "logs",
+            project_name=project_name,
             experiment_name=experiment_name,
             use_wandblogger=use_wandblogger,
             use_wandb_offline=use_wandb_offline,
@@ -142,6 +144,7 @@ class Trainer(L.Trainer):
     def init_logger(
         self,
         experiment_name: str,
+        project_name: str,
         logs_dir: Path,
         use_wandblogger: bool,
         use_wandb_offline: bool,
@@ -192,6 +195,7 @@ class HpoTrainer(Trainer):
             devices=config.devices if hasattr(config, "devices") else "auto",
             epochs=config.epochs,
             experiment_name=config.logging.experiment_name,
+            project_name=config.loggging.project_name,
             logging_interval=config.logging.logging_interval,
             params=dict(config.params),
             plugins=[RayLightningEnvironment()],
@@ -207,6 +211,7 @@ class HpoTrainer(Trainer):
     def init_logger(
         self,
         experiment_name: str,
+        project_name: str, 
         logs_dir: Path,
         use_wandblogger: bool,
         use_wandb_offline: bool,
@@ -228,7 +233,7 @@ class HpoTrainer(Trainer):
 
                 wandb_logger = CustomWandbLogger(
                     save_dir=wandb_dir,
-                    project="hpo_eo_models_context",
+                    project=project_name,
                     name=experiment_name,
                     offline=use_wandb_offline,
                     log_model=log_model,
@@ -294,6 +299,7 @@ class PipelineTrainer(Trainer):
             devices=config.devices if hasattr(config, "devices") else "auto",
             epochs=config.epochs,
             experiment_name=config.logging.experiment_name,
+            project_name=config.loggging.project_name,
             logging_interval=config.logging.logging_interval,
             params=dict(config.params),
             seed=config.seed,
@@ -312,6 +318,7 @@ class PipelineTrainer(Trainer):
     def init_logger(
         self,
         experiment_name: str,
+        project_name: str,
         logs_dir: Path,
         use_wandblogger: bool,
         use_wandb_offline: bool,
@@ -338,55 +345,7 @@ class PipelineTrainer(Trainer):
 
                 wandb_logger = CustomWandbLogger(
                     save_dir=wandb_dir,
-                    project="eo_model_ablations",
-                    name=experiment_name,
-                    offline=use_wandb_offline,
-                    log_model=log_model,
-                )
-                logger.append(wandb_logger)
-                self.wandb_logger = wandb_logger
-
-        except ModuleNotFoundError:
-            pass
-
-        return logger
-
-
-class FTTrainer(PipelineTrainer):
-
-    def __init__(
-        self,
-        config: CN,
-        hw_device: str | None = None,
-    ) -> None:
-
-        super().__init__(config=config, hw_device=hw_device)
-
-    def init_logger(
-        self,
-        experiment_name: str,
-        logs_dir: Path,
-        use_wandblogger: bool,
-        use_wandb_offline: bool,
-        log_checkpoint: str | bool,
-    ) -> Logger:
-
-        logger = [
-            CSVLogger(save_dir=logs_dir / "csv_logs", name=experiment_name),
-        ]
-
-        try:
-            if use_wandblogger:
-                wandb_dir = logs_dir / "wandb_logs"
-                wandb_dir.mkdir(parents=True, exist_ok=True)
-                log_model = log_checkpoint if not use_wandb_offline else False
-                os.environ["WANDB_MODE"] = (
-                    "online" if not use_wandb_offline else "offline"
-                )
-
-                wandb_logger = CustomWandbLogger(
-                    save_dir=wandb_dir,
-                    project="eo_downstream_feature_tuning",
+                    project=project_name,
                     name=experiment_name,
                     offline=use_wandb_offline,
                     log_model=log_model,
