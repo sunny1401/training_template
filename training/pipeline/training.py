@@ -8,7 +8,7 @@ import lightning as L
 import torch
 from torch import optim
 from yacs.config import CfgNode as CN
-from training.pipeline.lr_scheduler import build_scheduler
+from eo_lib.pipeline.lr_scheduler import build_scheduler
 
 
 logging.basicConfig(
@@ -84,7 +84,8 @@ class PretrainingPipeline(L.LightningModule):
         super().on_train_epoch_end()
 
     def training_step(self, batch, batch_idx):
-        train_loss, _, _ = self(batch=batch, batch_idx=batch_idx)
+        returns = self(batch=batch, batch_idx=batch_idx)
+        train_loss = returns[0]
         self.log(
             f"train_{self._metric}",
             train_loss,
@@ -107,19 +108,31 @@ class PretrainingPipeline(L.LightningModule):
                 logging.warning(
                     f"NaN gradient detected in {name} at batch index {self.trainer.global_step}"
                 )
-                # raise ValueError(f"NaN gradient detected in {name}")
-                self.trainer.should_stop = True
+                param.grad = torch.where(torch.isnan(param.grad), torch.tensor(0.1, device=param.grad.device), param.grad)
+                self.trainer.should_stop = False
+            else:
+                min_val, max_val = -0.5, 0.5
+                if param.grad is not None:
+                    # mean_grad = param.grad.mean().item()
+                    # max_grad = param.grad.max().item()
+                    # min_grad = param.grad.min().item()
+                    # self.log(f"{name}_grad_mean", mean_grad)
+                    # self.log(f"{name}_grad_max", max_grad)
+                    # self.log(f"{name}_grad_min", min_grad)
+                    param.grad.data = torch.clamp(param.grad.data, min_val, max_val)
+        max_norm = 1.0
+        torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm)
         super().on_after_backward()
 
     def configure_optimizers(self):
         eff_batch_size = (
-            self.batch_size
-            * self.trainer.num_devices
+            self.batch_size *
+            self.trainer.num_devices
             * self._lr_scheduler_details.accumulate_grad_batches
         )
         learning_rate = (
-            eff_batch_size * self._lr_scheduler_details.base_lr
-        ) / self._lr_scheduler_details.lr_scale_factor
+            self._lr_scheduler_details.base_lr * (eff_batch_size) / 396
+        )
 
         optimizer = optim.AdamW(
             self.parameters(),
@@ -142,10 +155,10 @@ class PretrainingPipeline(L.LightningModule):
 
         if self._lr_scheduler_details.name == "cosine":
             lr_scheduler_config["frequency"] = 1
-        elif self._lr_scheduler_details.name == "ccosine_with_plateau":
+        elif self._lr_scheduler_details.name == "cosine_with_plateau":
             lr_scheduler_config["monitor"] = f"val_{self._metric}"
-            lr_scheduler_config["mode"] = "min"
-            lr_scheduler_config["patience"] = self._lr_scheduler_details.patience
+            #lr_scheduler_config["mode"] = "min"
+            #lr_scheduler_config["patience"] = self._lr_scheduler_details.patience
             lr_scheduler_config["frequency"] = 1
 
         return {
@@ -177,7 +190,8 @@ class HPOProbingPipeline(PretrainingPipeline):
 
     def validation_step(self, batch, batch_idx):
         print(f"Validation step called for batch index {batch_idx}")
-        val_metric, _, _ = self(batch=batch, batch_idx=batch_idx)
+        returns = self(batch=batch, batch_idx=batch_idx)
+        val_metric = returns[0]
         self.log(
             f"val_{self._metric}",
             val_metric,

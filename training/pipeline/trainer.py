@@ -27,9 +27,9 @@ from ray.train.lightning import RayLightningEnvironment
 
 import torch
 from yacs.config import CfgNode as CN
-from training import REPO_LOCATION
-from training.utils.cuda import get_device
-from training.utils.reproducibility import set_random_seed
+from eo_lib import REPO_LOCATION
+from eo_lib.utils.cuda import get_device
+from eo_lib.utils.reproducibility import set_random_seed
 
 
 logging.basicConfig(
@@ -37,6 +37,7 @@ logging.basicConfig(
 )
 
 torch.set_float32_matmul_precision("medium")
+#torch.cuda.set_device(1)
 
 
 class ClearCacheCallback(Callback):
@@ -67,6 +68,7 @@ class Trainer(L.Trainer):
         callback_list: List[Callable],
         default_root_dir: Path,
         device_count: str | int,
+        devices: int,
         epochs: int,
         experiment_name: str,
         logging_interval: str,
@@ -162,12 +164,12 @@ class HpoTrainer(Trainer):
         )
 
         hw_device = get_device() if not hw_device else hw_device
-        if not hasattr(config, "default_root_dir"):
+        if not hasattr(config.logging, "default_root_dir"):
             default_root_dir: Path = (
                 REPO_LOCATION / "pl_logs" / config.logging.experiment_name
             )
         else:
-            default_root_dir = Path(config.default_root_dir)
+            default_root_dir = Path(config.logging.default_root_dir)
 
         callback_list = Trainer.init_callbacks(
             lr_scheduler_name=config.lr_scheduler.name,
@@ -186,7 +188,8 @@ class HpoTrainer(Trainer):
             accelerator="auto",
             callback_list=callback_list,
             default_root_dir=default_root_dir,
-            device_count="auto",
+            device_count=config.device_count,
+            devices=config.devices if hasattr(config, "devices") else "auto",
             epochs=config.epochs,
             experiment_name=config.logging.experiment_name,
             logging_interval=config.logging.logging_interval,
@@ -225,7 +228,7 @@ class HpoTrainer(Trainer):
 
                 wandb_logger = CustomWandbLogger(
                     save_dir=wandb_dir,
-                    project="eo_fm_models",
+                    project="hpo_eo_models_context",
                     name=experiment_name,
                     offline=use_wandb_offline,
                     log_model=log_model,
@@ -252,12 +255,12 @@ class PipelineTrainer(Trainer):
         )
 
         hw_device = get_device() if not hw_device else hw_device
-        if not hasattr(config, "default_root_dir"):
+        if not hasattr(config.logging, "default_root_dir"):
             default_root_dir: Path = (
                 REPO_LOCATION / "pl_logs" / config.logging.experiment_name
             )
         else:
-            default_root_dir = Path(config.default_root_dir)
+            default_root_dir = Path(config.logging.default_root_dir)
 
         callback_list = Trainer.init_callbacks(
             lr_scheduler_name=config.lr_scheduler.name,
@@ -288,6 +291,7 @@ class PipelineTrainer(Trainer):
             callback_list=callback_list,
             default_root_dir=default_root_dir,
             device_count=config.device_count,
+            devices=config.devices if hasattr(config, "devices") else "auto",
             epochs=config.epochs,
             experiment_name=config.logging.experiment_name,
             logging_interval=config.logging.logging_interval,
@@ -296,7 +300,7 @@ class PipelineTrainer(Trainer):
             strategy=(
                 DDPStrategy(process_group_backend=config.ddp_strategy)
                 if config.strategy == "ddp"
-                else self.config.strategy
+                else config.strategy
             ),
         )
 
@@ -334,7 +338,7 @@ class PipelineTrainer(Trainer):
 
                 wandb_logger = CustomWandbLogger(
                     save_dir=wandb_dir,
-                    project="eo_fm_models",
+                    project="eo_model_ablations",
                     name=experiment_name,
                     offline=use_wandb_offline,
                     log_model=log_model,
@@ -346,3 +350,52 @@ class PipelineTrainer(Trainer):
             pass
 
         return logger
+
+
+class FTTrainer(PipelineTrainer):
+
+    def __init__(
+        self,
+        config: CN,
+        hw_device: str | None = None,
+    ) -> None:
+
+        super().__init__(config=config, hw_device=hw_device)
+
+    def init_logger(
+        self,
+        experiment_name: str,
+        logs_dir: Path,
+        use_wandblogger: bool,
+        use_wandb_offline: bool,
+        log_checkpoint: str | bool,
+    ) -> Logger:
+
+        logger = [
+            CSVLogger(save_dir=logs_dir / "csv_logs", name=experiment_name),
+        ]
+
+        try:
+            if use_wandblogger:
+                wandb_dir = logs_dir / "wandb_logs"
+                wandb_dir.mkdir(parents=True, exist_ok=True)
+                log_model = log_checkpoint if not use_wandb_offline else False
+                os.environ["WANDB_MODE"] = (
+                    "online" if not use_wandb_offline else "offline"
+                )
+
+                wandb_logger = CustomWandbLogger(
+                    save_dir=wandb_dir,
+                    project="eo_downstream_feature_tuning",
+                    name=experiment_name,
+                    offline=use_wandb_offline,
+                    log_model=log_model,
+                )
+                logger.append(wandb_logger)
+                self.wandb_logger = wandb_logger
+
+        except ModuleNotFoundError:
+            pass
+
+        return logger
+    
