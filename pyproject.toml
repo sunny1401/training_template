@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "training_template"
+name = "lightning_training_template"
 version = "0.1.0"
 description = ""
 authors = ["sunny joshi <sankrantijoshi14@gmail.com>"]

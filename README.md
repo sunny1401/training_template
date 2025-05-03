@@ -12,14 +12,11 @@
 ## Customization
 To customize the current repo, template the repo to create a new repo. After the repo is created, the package folder needs to be updated if you want to customize and change. This needs to be done as follows:
 
-- remove the poetry.lock
 - in pyproject.toml, update the lines 1 -7 as needed
-- update references src/pipeline/trainer.py and src/pipeline/training.py [TODO - Add Github actions] - This would be handled automatically if changed via refactor in vscode
 - Add python packages as needed
 
 
 ```bash
-mv training <new package name>
 pip install poetry
 poetry install
 ```
