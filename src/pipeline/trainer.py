@@ -27,9 +27,9 @@ from ray.train.lightning import RayLightningEnvironment
 
 import torch
 from yacs.config import CfgNode as CN
-from eo_lib import REPO_LOCATION
-from eo_lib.utils.cuda import get_device
-from eo_lib.utils.reproducibility import set_random_seed
+from utils.cuda import get_device
+from utils.reproducibility import set_random_seed
+from src import REPO_LOCATION
 
 
 logging.basicConfig(
@@ -68,7 +68,6 @@ class Trainer(L.Trainer):
         callback_list: List[Callable],
         default_root_dir: Path,
         device_count: str | int,
-        devices: int,
         epochs: int,
         experiment_name: str,
         project_name: str,

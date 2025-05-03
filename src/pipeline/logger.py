@@ -48,8 +48,6 @@ class CustomWandbLogger(WandbLogger):
         os.environ["WANDB_RUN_GROUP"] = (
             "experiment-mlp-server" + wandb.util.generate_id()
         )
-        #self._wandb_init["resume"]= "must"
-        #self._wandb_init["id"] = "3e2yq5pz"
 
     @property
     @rank_zero_experiment

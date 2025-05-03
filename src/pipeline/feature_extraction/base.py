@@ -10,7 +10,7 @@ class FeatureExtractorClassification:
         self, 
         ckpt_path: Path | str,
         save_dir: Path | str,
-        module_path: Path
+        module_path: Path,
         train_dl: DataLoader, 
         test_dl: DataLoader, 
         val_dl: Optional[DataLoader],
