@@ -4,7 +4,7 @@ from abc import abstractmethod
 from torch.utils.data import Dataset
 
 
-from arc.pipeline.base_data_module import DatasetWrapperDataModule
+from src.pipeline.base_data_module import DatasetWrapperDataModule
 from src.utils.cuda import get_device
 from src.utils.reproducibility import set_random_seed
 from src.utils.read_config import load_cfg
