@@ -1,7 +1,10 @@
 import logging
 from abc import abstractmethod
 
+from torch.utils.data import Dataset
 
+
+from arc.pipeline.base_data_module import DatasetWrapperDataModule
 from src.utils.cuda import get_device
 from src.utils.reproducibility import set_random_seed
 from src.utils.read_config import load_cfg
@@ -12,16 +15,24 @@ logging.basicConfig(
 
 
 class Pipeline:
-    def __init__(self) -> None:
+    def __init__(self, model_cfg) -> None:
 
         self._logger = logging.getLogger(Pipeline.__qualname__)
 
         device = get_device()
         self._logger.info(f"Device that will be used is : {device}")
-        set_random_seed()
+        self.model_cfg = load_cfg(model_cfg)
+        set_random_seed(self.model_cfg.data.seed)
 
-    def _build_datamodule(self):
-        raise NotImplementedError
+    def _build_datamodule(self, train_ds: DataLoader, val_ds: Dataset):
+
+        self.data_module_ins = DatasetWrapperDataModule(
+                train_dataset=train_ds,
+                val_dataset=val_ds,
+                batch_size=self.model_cfg.data.batch_size,
+                num_workers=self.model_cfg.data.num_workers,
+                pin_memory=self.model_cfg.data.pin_memory
+            )
 
     @abstractmethod
     def _build_model(self):
@@ -50,8 +61,6 @@ class Pipeline:
 
         self._logger.info("Logged Metrics:", self.trainer.logged_metrics)
         self._logger.info("Callback Metrics:", self.trainer.callback_metrics)
-
-        self.trainer.logger.finalize("done")
 
         self._logger.info("Train process complete")
 

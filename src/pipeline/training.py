@@ -8,7 +8,8 @@ import lightning as L
 import torch
 from torch import optim
 from yacs.config import CfgNode as CN
-from eo_lib.pipeline.lr_scheduler import build_scheduler
+
+from src.pipeline.lr_scheduler import build_scheduler
 
 
 logging.basicConfig(

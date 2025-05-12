@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "lightning_training_template"
 version = "0.1.0"
-description = ""
+description = "Lightning Training Based Pytorch Project"
 authors = ["sunny joshi <sankrantijoshi14@gmail.com>"]
 readme = "README.md"
 packages = [{include = "src"}]
